@@ -20,20 +20,18 @@ Core agentic harness primitives for pi.
 - Stage 7 drift tuning / false-positive reduction with explicit drift decisions
 - Stage 8 package polish + install doctor diagnostics
 
-## Install locally
+## Install
+
+Recommended root package install:
 
 ```bash
-pi install /Users/olusegunsolaja-mini/Documents/Projects/forge-core
+pi install git:github.com/solejay/forge@v0.1.0
 ```
 
-Or add to project `.pi/settings.json`:
+For local development from a Forge checkout:
 
-```json
-{
-  "packages": [
-    "/Users/olusegunsolaja-mini/Documents/Projects/forge-core"
-  ]
-}
+```bash
+pi install /path/to/forge
 ```
 
 ## Stage 2: Drift detection and escalation

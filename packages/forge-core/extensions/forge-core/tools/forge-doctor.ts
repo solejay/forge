@@ -14,7 +14,7 @@ const EXPECTED_PACKAGES = [
   {
     name: "forge-core",
     packageName: "@forge/forge-core",
-    fallback: "/Users/olusegunsolaja-mini/Documents/Projects/forge-core",
+    fallback: "packages/forge-core",
     importantFiles: [
       "package.json",
       "extensions/forge-core/index.ts",
@@ -27,7 +27,7 @@ const EXPECTED_PACKAGES = [
   {
     name: "forge-mobile-dev",
     packageName: "@forge/forge-mobile-dev",
-    fallback: "/Users/olusegunsolaja-mini/Documents/Projects/forge-mobile-dev",
+    fallback: "packages/forge-mobile-dev",
     importantFiles: [
       "package.json",
       "extensions/forge-mobile/index.ts",
@@ -38,7 +38,7 @@ const EXPECTED_PACKAGES = [
   {
     name: "forge-design-studio",
     packageName: "@forge/forge-design-studio",
-    fallback: "/Users/olusegunsolaja-mini/Documents/Projects/forge-design-studio",
+    fallback: "packages/forge-design-studio",
     importantFiles: [
       "package.json",
       "extensions/design-pipeline/index.ts",
@@ -116,7 +116,7 @@ function resolvePackagePaths(packages: string[], settingsDir: string): string[] 
 
 function inspectPackage(expected: typeof EXPECTED_PACKAGES[number], installedPaths: string[]): DoctorCheck[] {
   const checks: DoctorCheck[] = [];
-  const packagePath = installedPaths.find((path) => path.endsWith(`/${expected.name}`)) ?? expected.fallback;
+  const packagePath = installedPaths.find((path) => path.endsWith(`/${expected.name}`)) ?? resolve(process.cwd(), expected.fallback);
   const installed = installedPaths.includes(packagePath);
 
   checks.push({
