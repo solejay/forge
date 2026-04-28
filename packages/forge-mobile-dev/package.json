@@ -1,6 +1,6 @@
 {
   "name": "@forge/forge-mobile-dev",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Mobile engineering harness for pi — iOS & Android agent routing, build loops, crash triage, deployment, visual verification, and Forge handoff",
   "keywords": [
     "pi-package",

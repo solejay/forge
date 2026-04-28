@@ -1,6 +1,6 @@
 {
   "name": "@forge/forge-design-studio",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Design pipeline for pi — from PRD to production-quality screen mockups via nano-banana, with Forge world state handoff",
   "keywords": [
     "pi-package",

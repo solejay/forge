@@ -47,6 +47,12 @@ packages/
 ### Recommended: one-command GitHub install
 
 ```bash
+pi install git:github.com/solejay/forge@v0.1.0
+```
+
+For the latest development version:
+
+```bash
 pi install git:github.com/solejay/forge
 ```
 
@@ -127,6 +133,22 @@ pi remove /Users/olusegunsolaja-mini/Documents/Projects/forge-core
 pi remove /Users/olusegunsolaja-mini/Documents/Projects/forge-design-studio
 pi remove /Users/olusegunsolaja-mini/Documents/Projects/forge-mobile-dev
 pi install /Users/olusegunsolaja-mini/Documents/Projects/forge
+```
+
+## Release/versioning
+
+See [`RELEASE.md`](RELEASE.md).
+
+Current release:
+
+```txt
+v0.1.0
+```
+
+Bump all package versions with:
+
+```bash
+scripts/bump-version.sh 0.2.0
 ```
 
 ## Safety
