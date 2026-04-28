@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# pi local install/cache state
+.pi/npm/
+.pi/git/
+.pi/tmp/
+
+# OS/editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# logs/temp
+*.log
+.tmp/
+tmp/
+coverage/
+dist/
+build/
+
+# Forge runtime scratch/worktrees
+.forge-worktrees/
+**/.forge-worktrees/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# generated local sessions or private outputs
+sessions/
+*.jsonl
+
+# project runtime state
+pipeline/state.json

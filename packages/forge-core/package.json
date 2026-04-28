@@ -1,0 +1,16 @@
+{
+  "name": "@forge/forge-core",
+  "version": "0.1.0",
+  "description": "Core agentic harness primitives for pi — world state, planning contracts, review gates, context hygiene, and project status",
+  "keywords": ["pi-package", "agent-harness", "forge", "world-state", "planning", "review"],
+  "license": "MIT",
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*",
+    "typebox": "*"
+  },
+  "pi": {
+    "extensions": ["./extensions/forge-core"],
+    "skills": ["./skills"]
+  }
+}

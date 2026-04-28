@@ -1,0 +1,23 @@
+{
+  "name": "@forge/forge-design-studio",
+  "version": "1.0.0",
+  "description": "Design pipeline for pi — from PRD to production-quality screen mockups via nano-banana, with Forge world state handoff",
+  "keywords": [
+    "pi-package",
+    "design",
+    "ui",
+    "style-guide",
+    "nano-banana",
+    "mobile-design",
+    "dribbble"
+  ],
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./extensions/design-pipeline"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

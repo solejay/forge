@@ -1,0 +1,23 @@
+{
+  "name": "@forge/forge-mobile-dev",
+  "version": "1.0.0",
+  "description": "Mobile engineering harness for pi — iOS & Android agent routing, build loops, crash triage, deployment, visual verification, and Forge handoff",
+  "keywords": [
+    "pi-package",
+    "mobile",
+    "ios",
+    "android",
+    "swiftui",
+    "jetpack-compose",
+    "xcode"
+  ],
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./extensions/forge-mobile"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "packages": [
+    "../../../forge-core",
+    "../../../forge-design-studio",
+    "../.."
+  ]
+}

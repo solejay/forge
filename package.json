@@ -1,0 +1,15 @@
+{
+  "name": "forge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Forge pi agentic harness packages: core orchestration, design studio, and mobile development.",
+  "keywords": ["pi-package", "agent-harness", "forge", "mobile", "design"],
+  "license": "MIT",
+  "scripts": {
+    "smoke": "bash scripts/smoke-test.sh",
+    "doctor": "pi -p --no-session -e packages/forge-core/extensions/forge-core/index.ts \"Run forge_doctor and summarize the Forge health report.\""
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}
