@@ -116,24 +116,6 @@ or in pi:
 /forge-doctor
 ```
 
-## Current development note
-
-The original local development packages may still exist as siblings:
-
-```txt
-../forge-core
-../forge-design-studio
-../forge-mobile-dev
-```
-
-Your active pi settings may point to those sibling paths. This monorepo is the release/package snapshot. If you want this repo to become the active source of truth, remove the sibling package entries and install this root package instead:
-
-```bash
-pi remove /Users/olusegunsolaja-mini/Documents/Projects/forge-core
-pi remove /Users/olusegunsolaja-mini/Documents/Projects/forge-design-studio
-pi remove /Users/olusegunsolaja-mini/Documents/Projects/forge-mobile-dev
-pi install /Users/olusegunsolaja-mini/Documents/Projects/forge
-```
 
 ## Release/versioning
 
