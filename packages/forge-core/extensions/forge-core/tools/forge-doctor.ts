@@ -2,6 +2,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ensureForgeState, FORGE_STATE_PATH } from "../state/store.js";
 
 interface DoctorCheck {
@@ -66,8 +67,9 @@ export function registerForgeDoctorTool(pi: ExtensionAPI) {
       checks.push(...settingsInfo.checks);
 
       const packagePaths = resolvePackagePaths(settingsInfo.packages, settingsInfo.settingsDir);
+      const packageRoots = discoverPackageRoots(packagePaths);
       for (const expected of EXPECTED_PACKAGES) {
-        checks.push(...inspectPackage(expected, packagePaths));
+        checks.push(...inspectPackage(expected, packagePaths, packageRoots));
       }
 
       checks.push(...inspectActiveTools(pi));
@@ -76,7 +78,7 @@ export function registerForgeDoctorTool(pi: ExtensionAPI) {
       const summary = summarizeChecks(checks);
       return {
         content: [{ type: "text", text: formatReport(checks, summary) }],
-        details: { summary, checks, settings: settingsInfo, packagePaths },
+        details: { summary, checks, settings: settingsInfo, packagePaths, packageRoots },
       };
     },
   });
@@ -114,10 +116,33 @@ function resolvePackagePaths(packages: string[], settingsDir: string): string[] 
   return packages.map((entry) => entry.startsWith("/") ? entry : resolve(settingsDir, entry));
 }
 
-function inspectPackage(expected: typeof EXPECTED_PACKAGES[number], installedPaths: string[]): DoctorCheck[] {
+function discoverPackageRoots(installedPaths: string[]): string[] {
+  const roots = new Set<string>();
+  roots.add(getCurrentPackageRoot());
+
+  for (const installedPath of installedPaths) {
+    if (existsSync(resolve(installedPath, "packages/forge-core"))) {
+      roots.add(installedPath);
+    }
+  }
+
+  return Array.from(roots);
+}
+
+function getCurrentPackageRoot(): string {
+  const extensionDir = typeof __dirname !== "undefined"
+    ? __dirname
+    : dirname(fileURLToPath(import.meta.url));
+  return resolve(extensionDir, "../../../../");
+}
+
+function inspectPackage(expected: typeof EXPECTED_PACKAGES[number], installedPaths: string[], packageRoots: string[]): DoctorCheck[] {
   const checks: DoctorCheck[] = [];
-  const packagePath = installedPaths.find((path) => path.endsWith(`/${expected.name}`)) ?? resolve(process.cwd(), expected.fallback);
-  const installed = installedPaths.includes(packagePath);
+  const packagePath =
+    installedPaths.find((path) => path.endsWith(`/${expected.name}`)) ??
+    packageRoots.map((root) => resolve(root, expected.fallback)).find((path) => existsSync(path)) ??
+    resolve(getCurrentPackageRoot(), expected.fallback);
+  const installed = installedPaths.includes(packagePath) || packageRoots.some((root) => installedPaths.includes(root));
 
   checks.push({
     name: `${expected.name} package path`,
