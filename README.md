@@ -42,23 +42,41 @@ packages/
 - deployment helpers
 - accessibility/performance/motion/code-signing skills
 
-## Local install
+## Install
 
-From this repository:
+### Recommended: one-command GitHub install
 
 ```bash
-pi install packages/forge-core
-pi install packages/forge-design-studio
-pi install packages/forge-mobile-dev
+pi install git:github.com/solejay/forge
 ```
 
-Or install globally from a checked-out repo path:
+The root package manifest exposes all Forge extensions and skills from `packages/`.
+
+### Local checkout install
+
+From this repository root:
+
+```bash
+pi install .
+```
+
+or from anywhere:
+
+```bash
+pi install /path/to/forge
+```
+
+### Advanced: install individual subpackages
+
+Use this only if you want a subset of Forge:
 
 ```bash
 pi install /path/to/forge/packages/forge-core
 pi install /path/to/forge/packages/forge-design-studio
 pi install /path/to/forge/packages/forge-mobile-dev
 ```
+
+Do not install both the root `forge` package and the individual subpackages at the same time, or tools/commands may be registered twice.
 
 After installing or updating extensions, run:
 
@@ -74,7 +92,11 @@ or restart pi.
 npm run smoke
 ```
 
-This verifies all three package extensions load in print mode.
+This verifies:
+
+- each individual package extension loads in print mode
+- the root monorepo package manifest loads all Forge resources
+- Forge tools are discoverable
 
 ## Doctor
 
@@ -98,7 +120,14 @@ The original local development packages may still exist as siblings:
 ../forge-mobile-dev
 ```
 
-Your active pi settings may point to those sibling paths. This monorepo is the release/package snapshot. If you want this repo to become the active source of truth, update pi package settings to point to `packages/*` paths.
+Your active pi settings may point to those sibling paths. This monorepo is the release/package snapshot. If you want this repo to become the active source of truth, remove the sibling package entries and install this root package instead:
+
+```bash
+pi remove /Users/olusegunsolaja-mini/Documents/Projects/forge-core
+pi remove /Users/olusegunsolaja-mini/Documents/Projects/forge-design-studio
+pi remove /Users/olusegunsolaja-mini/Documents/Projects/forge-mobile-dev
+pi install /Users/olusegunsolaja-mini/Documents/Projects/forge
+```
 
 ## Safety
 

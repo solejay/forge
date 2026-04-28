@@ -18,6 +18,12 @@ run_pi_ext "core" "packages/forge-core/extensions/forge-core/index.ts" "Say forg
 run_pi_ext "design" "packages/forge-design-studio/extensions/design-pipeline/index.ts" "Say forge-design smoke ok."
 run_pi_ext "mobile" "packages/forge-mobile-dev/extensions/forge-mobile/index.ts" "Say forge-mobile smoke ok."
 
+# Root package load: validates the monorepo pi manifest exposes all Forge resources.
+echo "-- root package"
+pi -p --no-session --no-extensions -e "$ROOT" \
+  "List Forge tools only. Include forge_doctor if available." >/tmp/forge-smoke-root.out
+cat /tmp/forge-smoke-root.out
+
 echo "-- forge tools"
 pi -p --no-session --no-extensions -e "$ROOT/packages/forge-core/extensions/forge-core/index.ts" \
   "List Forge tools only. Include forge_doctor if available." >/tmp/forge-smoke-tools.out

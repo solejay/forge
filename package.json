@@ -7,7 +7,19 @@
   "license": "MIT",
   "scripts": {
     "smoke": "bash scripts/smoke-test.sh",
-    "doctor": "pi -p --no-session -e packages/forge-core/extensions/forge-core/index.ts \"Run forge_doctor and summarize the Forge health report.\""
+    "doctor": "pi -p --no-session --no-extensions -e . \"Run forge_doctor and summarize the Forge health report.\""
+  },
+  "pi": {
+    "extensions": [
+      "./packages/forge-core/extensions/forge-core",
+      "./packages/forge-design-studio/extensions/design-pipeline",
+      "./packages/forge-mobile-dev/extensions/forge-mobile"
+    ],
+    "skills": [
+      "./packages/forge-core/skills",
+      "./packages/forge-design-studio/skills",
+      "./packages/forge-mobile-dev/skills"
+    ]
   },
   "workspaces": [
     "packages/*"
