@@ -1,0 +1,27 @@
+{
+  "name": "@forge/forge-crucible",
+  "version": "0.1.0",
+  "description": "Self-improvement feedback loop for Forge: signal logging, proposal mining, and human-approved annealing.",
+  "keywords": [
+    "pi-package",
+    "agent-harness",
+    "forge",
+    "self-improvement",
+    "signals"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*",
+    "@mariozechner/pi-ai": "*",
+    "typebox": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/forge-crucible"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}

@@ -19,12 +19,14 @@
     "extensions": [
       "./packages/forge-core/extensions/forge-core",
       "./packages/forge-design-studio/extensions/design-pipeline",
-      "./packages/forge-mobile-dev/extensions/forge-mobile"
+      "./packages/forge-mobile-dev/extensions/forge-mobile",
+      "./packages/forge-crucible/extensions/forge-crucible"
     ],
     "skills": [
       "./packages/forge-core/skills",
       "./packages/forge-design-studio/skills",
-      "./packages/forge-mobile-dev/skills"
+      "./packages/forge-mobile-dev/skills",
+      "./packages/forge-crucible/skills"
     ]
   },
   "workspaces": [
