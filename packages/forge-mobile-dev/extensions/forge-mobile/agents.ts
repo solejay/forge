@@ -11,7 +11,7 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { StringEnum } from "@mariozechner/pi-ai";
+import { StringEnum, type Api, type Model } from "@mariozechner/pi-ai";
 import { Type } from "typebox";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
@@ -141,7 +141,7 @@ export function registerAgents(pi: ExtensionAPI) {
 
       const baseCwd = params.cwd || ctx.cwd;
       const isolation = (params.isolation ?? "none") as IsolationMode;
-      const modelRoute = getModelRouteForRole(baseCwd, params.role, params.model);
+      const modelRoute = getModelRouteForRole(baseCwd, params.role, params.model, ctx.modelRegistry, ctx.model);
       let runCwd = baseCwd;
       let worktree: CreatedWorktree | null = null;
       let cleanup: { cleaned: boolean; message: string } | null = null;
@@ -199,7 +199,7 @@ export function registerAgents(pi: ExtensionAPI) {
               worktree ? `Worktree: ${worktree.path}` : null,
               worktree ? `Branch: ${worktree.branch}` : null,
               cleanup ? `Cleanup: ${cleanup.cleaned ? "cleaned" : "kept"} — ${cleanup.message}` : null,
-              `Role: ${modelRoute.role}${modelRoute.modelArg ? ` → ${modelRoute.modelArg}` : " → current model"}`,
+              `Role: ${modelRoute.role}${modelRoute.modelArg ? ` → ${modelRoute.modelArg}` : " → current model"} (${modelRoute.resolution}: ${modelRoute.reason})`,
               "",
               output,
               mergeInstructions ? `\n${mergeInstructions}` : null,
@@ -230,24 +230,158 @@ export function registerAgents(pi: ExtensionAPI) {
   });
 }
 
-function getModelRouteForRole(cwd: string, role?: string, explicitModel?: string): { role: string; modelArg: string | null; sources: string[] } {
+type AnyModel = Model<Api>;
+type MobileModelRegistry = {
+  getAvailable(): AnyModel[];
+  getAll(): AnyModel[];
+  find(provider: string, modelId: string): AnyModel | undefined;
+};
+
+type MobileRoute = {
+  provider?: string;
+  model?: string;
+  modelString?: string;
+  capability?: string;
+  requireReasoning?: boolean;
+  minContextWindow?: number;
+  minMaxTokens?: number;
+  input?: Array<"text" | "image">;
+  maxInputCost?: number;
+  maxOutputCost?: number;
+  prefer?: string[];
+  avoid?: string[];
+};
+
+type MobileRouteInfo = {
+  role: string;
+  modelArg: string | null;
+  sources: string[];
+  resolution: "explicit" | "exact" | "capability" | "fallback_current" | "none";
+  reason: string;
+};
+
+function getModelRouteForRole(
+  cwd: string,
+  role?: string,
+  explicitModel?: string,
+  modelRegistry?: MobileModelRegistry,
+  currentModel?: AnyModel,
+): MobileRouteInfo {
   const resolvedRole = role || "implement";
-  if (explicitModel) return { role: resolvedRole, modelArg: explicitModel, sources: [] };
+  if (explicitModel) {
+    const exact = modelRegistry ? findModelByArg(modelRegistry, explicitModel) : null;
+    return exact
+      ? { role: resolvedRole, modelArg: modelToArg(exact), sources: [], resolution: "explicit", reason: "explicit_model_override" }
+      : { role: resolvedRole, modelArg: explicitModel, sources: [], resolution: "explicit", reason: "explicit_model_override_unverified" };
+  }
 
   for (const path of [resolve(cwd, "pipeline/model-routes.json"), resolve(cwd, ".forge/model-routes.json")]) {
     if (!existsSync(path)) continue;
     try {
-      const routes = JSON.parse(readFileSync(path, "utf8")) as Record<string, { provider?: string; model?: string; modelString?: string }>;
+      const routes = JSON.parse(readFileSync(path, "utf8")) as Record<string, MobileRoute>;
       const route = routes[resolvedRole] ?? routes.default;
       if (!route) continue;
-      const modelArg = route.modelString ?? (route.provider && route.model ? `${route.provider}/${route.model}` : route.model ?? null);
-      return { role: resolvedRole, modelArg, sources: [path] };
+
+      const exactArg = route.modelString ?? (route.provider && route.model ? `${route.provider}/${route.model}` : route.model ?? null);
+      if (exactArg) {
+        const exact = modelRegistry ? findModelByArg(modelRegistry, exactArg, route.provider) : null;
+        if (exact) return { role: resolvedRole, modelArg: modelToArg(exact), sources: [path], resolution: "exact", reason: "exact_route_match" };
+        if (!hasCapabilityRequirements(route)) {
+          return { role: resolvedRole, modelArg: null, sources: [path], resolution: currentModel ? "fallback_current" : "none", reason: "exact_model_not_found" };
+        }
+      }
+
+      if (modelRegistry && hasCapabilityRequirements(route)) {
+        const capable = rankMobileCandidates(modelRegistry.getAvailable(), resolvedRole, route)[0];
+        if (capable) return { role: resolvedRole, modelArg: modelToArg(capable), sources: [path], resolution: "capability", reason: "capability_match" };
+        return { role: resolvedRole, modelArg: null, sources: [path], resolution: currentModel ? "fallback_current" : "none", reason: "no_capable_available_model" };
+      }
+
+      return { role: resolvedRole, modelArg: exactArg, sources: [path], resolution: exactArg ? "exact" : "none", reason: exactArg ? "exact_route_unverified" : "route_has_no_model_or_capability" };
     } catch {
       // Ignore invalid route files and fall back to current model.
     }
   }
 
-  return { role: resolvedRole, modelArg: null, sources: [] };
+  return { role: resolvedRole, modelArg: null, sources: [], resolution: currentModel ? "fallback_current" : "none", reason: "no_route_configured" };
+}
+
+function hasCapabilityRequirements(route: MobileRoute): boolean {
+  return Boolean(route.capability || route.requireReasoning !== undefined || route.minContextWindow !== undefined || route.minMaxTokens !== undefined || route.input || route.maxInputCost !== undefined || route.maxOutputCost !== undefined || route.prefer || route.avoid);
+}
+
+function rankMobileCandidates(models: AnyModel[], role: string, route: MobileRoute): AnyModel[] {
+  const capability = route.capability ?? roleDefaultCapability(role);
+  return models
+    .map((model) => ({ model, score: scoreMobileCandidate(model, route, capability) }))
+    .filter((entry): entry is { model: AnyModel; score: number } => entry.score !== null)
+    .sort((a, b) => b.score - a.score || modelToArg(a.model).localeCompare(modelToArg(b.model)))
+    .map((entry) => entry.model);
+}
+
+function scoreMobileCandidate(model: AnyModel, route: MobileRoute, capability: string): number | null {
+  const effective = applyCapabilityDefaults(route, capability);
+  if (effective.requireReasoning && !model.reasoning) return null;
+  if (effective.minContextWindow !== undefined && model.contextWindow < effective.minContextWindow) return null;
+  if (effective.minMaxTokens !== undefined && model.maxTokens < effective.minMaxTokens) return null;
+  if (effective.maxInputCost !== undefined && model.cost.input > effective.maxInputCost) return null;
+  if (effective.maxOutputCost !== undefined && model.cost.output > effective.maxOutputCost) return null;
+  if (effective.input?.some((required) => !model.input.includes(required))) return null;
+
+  const haystack = `${String(model.provider)}/${model.id} ${model.name}`.toLowerCase();
+  const preferIndex = firstPatternIndex(effective.prefer ?? [], haystack);
+  const avoidIndex = firstPatternIndex(effective.avoid ?? [], haystack);
+  let score = 0;
+  if (model.reasoning) score += 20;
+  score += Math.min(30, Math.log10(Math.max(model.contextWindow, 1)) * 6);
+  score += capability === "cheap-fast" ? Math.max(0, 30 - model.cost.input - model.cost.output) : Math.max(0, 10 - (model.cost.input + model.cost.output) / 2);
+  if (preferIndex >= 0) score += 100 - preferIndex * 5;
+  if (avoidIndex >= 0) score -= 50;
+  return score;
+}
+
+function applyCapabilityDefaults(route: MobileRoute, capability: string): MobileRoute {
+  const profiles: Record<string, MobileRoute> = {
+    "cheap-fast": { input: ["text"], prefer: ["*mini*", "*flash*", "*haiku*", "*small*", "*lite*"], avoid: ["*opus*"] },
+    "strong-reasoning": { requireReasoning: true, minContextWindow: 100_000, input: ["text"], prefer: ["*sonnet*", "*claude*", "*gpt-5*", "*gpt-4.1*", "*gemini*pro*", "*opus*"] },
+    coding: { minContextWindow: 64_000, input: ["text"], prefer: ["*sonnet*", "*claude*", "*gpt*", "*gemini*pro*", "*coder*"] },
+    general: { input: ["text"], prefer: ["*sonnet*", "*gpt*", "*gemini*", "*claude*"] },
+  };
+  const profile = profiles[capability] ?? profiles.general;
+  return { ...profile, ...route, prefer: [...(profile.prefer ?? []), ...(route.prefer ?? [])], avoid: [...(profile.avoid ?? []), ...(route.avoid ?? [])] };
+}
+
+function roleDefaultCapability(role: string): string {
+  return role === "quick" || role === "explore" || role === "commit" ? "cheap-fast" : role === "plan" || role === "review" ? "strong-reasoning" : "coding";
+}
+
+function findModelByArg(modelRegistry: MobileModelRegistry, modelArg: string, providerHint?: string): AnyModel | null {
+  const parsed = parseModelArg(modelArg, providerHint);
+  if (parsed) return modelRegistry.find(parsed.provider, parsed.model) ?? null;
+  const matches = modelRegistry.getAll().filter((model) => model.id === modelArg || modelToArg(model) === modelArg);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function parseModelArg(modelArg: string, providerHint?: string): { provider: string; model: string } | null {
+  if (providerHint && !modelArg.includes("/")) return { provider: providerHint, model: modelArg };
+  const slash = modelArg.indexOf("/");
+  if (slash <= 0 || slash >= modelArg.length - 1) return null;
+  return { provider: modelArg.slice(0, slash), model: modelArg.slice(slash + 1) };
+}
+
+function modelToArg(model: AnyModel): string {
+  return `${String(model.provider)}/${model.id}`;
+}
+
+function firstPatternIndex(patterns: string[], haystack: string): number {
+  return patterns.findIndex((pattern) => globMatch(pattern, haystack));
+}
+
+function globMatch(pattern: string, haystack: string): boolean {
+  const normalized = pattern.toLowerCase();
+  if (!normalized.includes("*")) return haystack.includes(normalized);
+  const escaped = normalized.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+  return new RegExp(escaped).test(haystack);
 }
 
 async function isGitRepository(pi: ExtensionAPI, cwd: string, signal?: AbortSignal): Promise<boolean> {

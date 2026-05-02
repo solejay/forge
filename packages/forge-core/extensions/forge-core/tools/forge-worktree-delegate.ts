@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { Type } from "typebox";
-import { getRouteForRole } from "../models/routes.js";
+import { resolveModelRoute } from "../models/routes.js";
 import { buildMergeInstructions, cleanupWorktree, createWorktree, hasDirtyWorkingTree } from "../worktree/worktree.js";
 
 const IsolationModes = ["none", "worktree"] as const;
@@ -36,7 +36,13 @@ export function registerForgeWorktreeDelegateTool(pi: ExtensionAPI) {
       const baseCwd = params.cwd || ctx.cwd;
       const isolation = (params.isolation ?? "worktree") as "none" | "worktree";
       const timeout = params.timeoutMs ?? 300_000;
-      const modelRoute = getRouteForRole(baseCwd, params.role, params.model);
+      const modelRoute = resolveModelRoute({
+        cwd: baseCwd,
+        role: params.role,
+        explicitModel: params.model,
+        modelRegistry: ctx.modelRegistry,
+        currentModel: ctx.model,
+      });
 
       let runCwd = baseCwd;
       let worktree: Awaited<ReturnType<typeof createWorktree>> | null = null;
@@ -86,7 +92,7 @@ export function registerForgeWorktreeDelegateTool(pi: ExtensionAPI) {
         worktree ? `Worktree: ${worktree.path}` : null,
         worktree ? `Branch: ${worktree.branch}` : null,
         cleanup ? `Cleanup: ${cleanup.cleaned ? "cleaned" : "kept"} — ${cleanup.message}` : null,
-        `Role: ${modelRoute.role}${modelRoute.modelArg ? ` → ${modelRoute.modelArg}` : " → current model"}`,
+        `Role: ${modelRoute.role}${modelRoute.modelArg ? ` → ${modelRoute.modelArg}` : " → current model"} (${modelRoute.resolution}: ${modelRoute.reason})`,
         "",
         "Output:",
         output,

@@ -148,17 +148,32 @@ Example:
 
 ```json
 {
-  "quick": { "modelString": "openrouter/openai/gpt-5.5-mini", "thinkingLevel": "low" },
-  "plan": { "modelString": "openrouter/openai/gpt-5.5", "thinkingLevel": "high" },
-  "review": { "modelString": "openrouter/anthropic/claude-sonnet-4.5", "thinkingLevel": "high" }
+  "quick": { "capability": "cheap-fast", "thinkingLevel": "low" },
+  "plan": { "capability": "strong-reasoning", "thinkingLevel": "high" },
+  "review": {
+    "capability": "strong-reasoning",
+    "minContextWindow": 100000,
+    "prefer": ["*sonnet*", "*claude*", "*gpt*"],
+    "thinkingLevel": "high"
+  }
+}
+```
+
+Exact routes remain supported for pinned setups:
+
+```json
+{
+  "review": { "modelString": "anthropic/claude-sonnet-4-5", "thinkingLevel": "high" }
 }
 ```
 
 Rules:
 
-- config stores provider/model identifiers only, never API keys
-- default behavior remains the current model when no role route is configured
-- `forge_model_route action=show` is non-mutating
+- config stores provider/model identifiers or capability requirements only, never API keys
+- exact `provider`/`model`/`modelString` routes are tried first for backward compatibility
+- capability routes discover from pi's authenticated `modelRegistry.getAvailable()` models
+- default behavior remains the current model when no role route is configured or no capable model is available
+- `forge_model_route action=show` is non-mutating and reports whether resolution used exact, capability, or fallback routing
 - `forge_model_route action=switch` attempts `pi.setModel` and reports safely when the model or credentials are unavailable
 - `forge_worktree_delegate` and mobile `delegate_to_agent` can pass role/model to sub-agent invocations
 

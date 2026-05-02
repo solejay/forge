@@ -254,11 +254,30 @@ Example:
 
 ```json
 {
-  "quick": { "modelString": "openrouter/openai/gpt-5.5-mini", "thinkingLevel": "low" },
-  "plan": { "modelString": "openrouter/openai/gpt-5.5", "thinkingLevel": "high" },
-  "review": { "modelString": "openrouter/anthropic/claude-sonnet-4.5", "thinkingLevel": "high" }
+  "quick": { "capability": "cheap-fast", "thinkingLevel": "low" },
+  "plan": { "capability": "strong-reasoning", "thinkingLevel": "high" },
+  "review": {
+    "capability": "strong-reasoning",
+    "minContextWindow": 100000,
+    "prefer": ["*sonnet*", "*claude*", "*gpt*"],
+    "thinkingLevel": "high"
+  }
 }
 ```
+
+Exact pinned model routes like `{ "modelString": "provider/model-id" }` are still supported, but capability routes discover from authenticated models available in pi.
+
+Capability routes can combine:
+
+- `capability`: `cheap-fast`, `strong-reasoning`, `coding`, `long-context`, or `vision`
+- `minContextWindow` / `minMaxTokens`
+- `requireReasoning`
+- `input`: e.g. `["text", "image"]`
+- `maxInputCost` / `maxOutputCost`
+- `prefer` / `avoid` glob patterns matched against provider, model id, and model name
+- `fallback`: defaults to the current model when no capable authenticated model is found
+
+`forge_model_route action=show` explains whether a role resolved through an exact pin, capability discovery, or fallback. Delegation tools pass a concrete discovered `--model` to sub-agents when possible.
 
 Inspect routes:
 
@@ -309,6 +328,17 @@ pipeline/signal-log.jsonl
 ```
 
 They contain compact, privacy-safe metadata such as task type, verification status, drift count, model route, duration, and invoked tools/skills. They should not contain secrets, raw logs, or full transcripts.
+
+Core Crucible tools:
+
+```txt
+forge_signal      # append a privacy-safe task outcome signal
+crucible_status   # summarize signal-log health and readiness
+forge_crucible    # mine signals into human-reviewable proposals
+forge_anneal      # apply proposals explicitly marked [APPLY]
+```
+
+Crucible is intentionally conservative: mining only writes proposals, and annealing skips anything the human has not marked `[APPLY]`.
 
 Check learning health:
 

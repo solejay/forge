@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { Type } from "typebox";
-import { formatRoutes, getRouteForRole, loadModelRoutes, routeToModelArg, sampleModelRoutes } from "../models/routes.js";
+import { formatRouteResolution, formatRoutes, loadModelRoutes, parseModelArg, resolveModelRoute, sampleModelRoutes } from "../models/routes.js";
 
 const Roles = ["default", "quick", "explore", "plan", "implement", "review", "commit"] as const;
 const Actions = ["show", "switch", "sample"] as const;
@@ -37,7 +37,13 @@ export function registerForgeModelRouteTool(pi: ExtensionAPI) {
       }
 
       const { routes, sources } = loadModelRoutes(ctx.cwd);
-      const routeInfo = getRouteForRole(ctx.cwd, role, params.model);
+      const routeInfo = resolveModelRoute({
+        cwd: ctx.cwd,
+        role,
+        explicitModel: params.model,
+        modelRegistry: ctx.modelRegistry,
+        currentModel: ctx.model,
+      });
       const currentModel = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "unknown";
       const configured = formatRoutes(routes);
 
@@ -53,63 +59,39 @@ export function registerForgeModelRouteTool(pi: ExtensionAPI) {
               "",
               configured,
               "",
-              `Resolved role '${routeInfo.role}': ${routeInfo.modelArg ?? "current model"}`,
+              `Resolved role '${routeInfo.role}': ${formatRouteResolution(routeInfo)}`,
             ].join("\n"),
           }],
           details: { sources, currentModel, routes, resolved: routeInfo },
         };
       }
 
-      const modelArg = routeInfo.modelArg;
-      if (!modelArg) {
-        return {
-          content: [{ type: "text", text: `No model configured for role '${role}'. Current model remains ${currentModel}.` }],
-          details: { switched: false, reason: "no_model_configured", currentModel, resolved: routeInfo },
-        };
-      }
-
-      const parsed = parseModelArg(modelArg, routeInfo.route?.provider);
-      if (!parsed) {
-        return {
-          content: [{ type: "text", text: `Could not parse model route '${modelArg}'. Expected provider/model.` }],
-          details: { switched: false, reason: "unparseable_model", currentModel, resolved: routeInfo },
-        };
-      }
-
-      const model = ctx.modelRegistry.find(parsed.provider, parsed.model);
+      const model = routeInfo.selectedModel;
       if (!model) {
         return {
-          content: [{ type: "text", text: `Model not found: ${parsed.provider}/${parsed.model}. Current model remains ${currentModel}.` }],
-          details: { switched: false, reason: "model_not_found", currentModel, requested: parsed, resolved: routeInfo },
+          content: [{ type: "text", text: `No capable model resolved for role '${role}' (${routeInfo.reason}). Current model remains ${currentModel}.` }],
+          details: { switched: false, reason: routeInfo.reason, currentModel, resolved: routeInfo },
         };
       }
 
-      const switched = await pi.setModel(model);
-      if (routeInfo.route?.thinkingLevel) {
-        pi.setThinkingLevel(routeInfo.route.thinkingLevel);
+      const switched = routeInfo.resolution === "fallback_current" && ctx.model
+        ? true
+        : await pi.setModel(model);
+      if (routeInfo.thinkingLevel) {
+        pi.setThinkingLevel(routeInfo.thinkingLevel);
       }
 
       const nextModel = switched ? `${model.provider}/${model.id}` : currentModel;
+      const requested = routeInfo.requestedModelArg ? parseModelArg(routeInfo.requestedModelArg, routeInfo.route?.provider) : undefined;
       return {
         content: [{
           type: "text",
           text: switched
-            ? `Switched Forge role '${role}' to ${nextModel}${routeInfo.route?.thinkingLevel ? ` with thinking=${routeInfo.route.thinkingLevel}` : ""}.`
-            : `Could not switch to ${parsed.provider}/${parsed.model}; credentials may be unavailable. Current model remains ${currentModel}.`,
+            ? `Switched Forge role '${role}' to ${nextModel}${routeInfo.thinkingLevel ? ` with thinking=${routeInfo.thinkingLevel}` : ""} via ${routeInfo.resolution}.`
+            : `Could not switch to ${routeInfo.modelArg ?? nextModel}; credentials may be unavailable. Current model remains ${currentModel}.`,
         }],
-        details: { switched, previousModel: currentModel, currentModel: nextModel, requested: parsed, resolved: routeInfo },
+        details: { switched, previousModel: currentModel, currentModel: nextModel, requested, resolved: routeInfo },
       };
     },
   });
-}
-
-export function resolveModelForRole(cwd: string, role?: string, explicitModel?: string): string | null {
-  return getRouteForRole(cwd, role, explicitModel).modelArg;
-}
-
-function parseModelArg(modelArg: string, providerHint?: string): { provider: string; model: string } | null {
-  if (providerHint && !modelArg.includes("/")) return { provider: providerHint, model: modelArg };
-  const slash = modelArg.indexOf("/");
-  if (slash <= 0 || slash >= modelArg.length - 1) return null;
-  return { provider: modelArg.slice(0, slash), model: modelArg.slice(slash + 1) };
 }
