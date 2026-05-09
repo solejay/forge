@@ -3,6 +3,7 @@ import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
 import { classifyTask, compareClassification } from "../routing/classifier.js";
 import { ensureForgeState, writeForgeState } from "../state/store.js";
 import type { Classification, ForgeState } from "../state/schema.js";
+import { detectScopeExpansionSignals, normalizeDriftObservationText } from "./drift-text.js";
 
 interface TurnDriftTracker {
   prompt: string;
@@ -16,26 +17,14 @@ interface TurnDriftTracker {
 
 const trackers = new Map<string, TurnDriftTracker>();
 
-const SCOPE_EXPANSION_PATTERNS: Array<[RegExp, string]> = [
-  [/turns out (we|i) (also )?need/gi, "Scope expansion phrase: turns out we also need..."],
-  [/this requires (a )?(larger|bigger|broader) (refactor|rewrite|change)/gi, "Scope expansion phrase: requires larger refactor/rewrite"],
-  [/we need to refactor/gi, "Scope expansion phrase: need to refactor"],
-  [/i need to refactor/gi, "Scope expansion phrase: need to refactor"],
-  [/architectur(al|e) (change|issue|problem)/gi, "Architecture drift phrase detected"],
-  [/not just (a )?(bug|fix|typo)/gi, "Task is no longer just the original small scope"],
-  [/this is (actually|really) (a )?(feature|refactor|architecture)/gi, "Task type recharacterized mid-flight"],
-  [/requires touching multiple (modules|features|layers)/gi, "Multiple-layer scope expansion detected"],
-  [/need to change the API/gi, "API contract scope expansion detected"],
-  [/need to change the data model/gi, "Data model scope expansion detected"],
-];
-
 export function registerDriftRuntime(pi: ExtensionAPI) {
   pi.on("before_agent_start", async (event, ctx) => {
     const meta = getContextMeta(ctx);
     if (!meta) return;
     const { cwd } = meta;
     const state = await ensureForgeState(cwd);
-    const classification = classifyTask(event.prompt);
+    const observationPrompt = normalizeDriftObservationText(event.prompt);
+    const classification = classifyTask(observationPrompt);
 
     const shouldSeedClassification =
       state.current_task.status === "idle" ||
@@ -56,7 +45,7 @@ export function registerDriftRuntime(pi: ExtensionAPI) {
     }
 
     trackers.set(cwd, {
-      prompt: event.prompt,
+      prompt: observationPrompt,
       toolCalls: 0,
       mutationCalls: 0,
       editedPaths: new Set(),
@@ -100,7 +89,7 @@ export function registerDriftRuntime(pi: ExtensionAPI) {
     if (!text) return;
 
     const tracker = getTracker(cwd);
-    tracker.textSignals.push(...detectTextSignals(text));
+    tracker.textSignals.push(...detectScopeExpansionSignals(text));
   });
 
   pi.on("agent_end", async (_event, ctx) => {
@@ -112,7 +101,7 @@ export function registerDriftRuntime(pi: ExtensionAPI) {
 
     const state = await ensureForgeState(cwd);
     const original = state.current_task.original_classification ?? state.current_task.classification;
-    const currentText = [tracker.prompt, ...tracker.textSignals].join("\n");
+    const currentText = normalizeDriftObservationText([tracker.prompt, ...tracker.textSignals].join("\n"));
     const reclassification = classifyTask(currentText);
 
     const driftSignals = collectDriftSignals(state, original, reclassification, tracker);
@@ -212,6 +201,14 @@ async function recordDriftAndEscalate(
     nextState.current_task.drift.escalation_required = false;
     nextState.current_task.drift.human_decision = "continue";
     await writeForgeState(ctx.cwd, nextState);
+    safeSendUserMessage(
+      pi,
+      [
+        "Forge drift was accepted and the task is unblocked.",
+        "Continue from the current Forge plan step without re-escalating on the previous drift summary.",
+        "Run forge_status if you need to confirm the active step before proceeding.",
+      ].join("\n"),
+    );
     safeSendMessage(pi, { customType: "forge-drift-escalation", content: summary + "\n\nHuman decision: continue.", display: true });
   } else if (choice?.startsWith("replan")) {
     nextState.current_task.status = "planning";
@@ -267,15 +264,6 @@ function getTracker(cwd: string): TurnDriftTracker {
     trackers.set(cwd, tracker);
   }
   return tracker;
-}
-
-function detectTextSignals(text: string): string[] {
-  const signals: string[] = [];
-  for (const [pattern, reason] of SCOPE_EXPANSION_PATTERNS) {
-    if (pattern.test(text)) signals.push(reason);
-    pattern.lastIndex = 0;
-  }
-  return signals;
 }
 
 function isPotentiallyBroadCommand(command: string): boolean {

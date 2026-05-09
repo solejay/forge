@@ -34,4 +34,11 @@ pi -p --no-session --no-extensions -e "$ROOT/packages/forge-core/extensions/forg
 cat /tmp/forge-smoke-tools.out
 grep -q "forge_goal" /tmp/forge-smoke-tools.out
 
+if command -v bun >/dev/null 2>&1; then
+  echo "-- drift regression"
+  bun "$ROOT/scripts/drift-regression-check.mjs"
+else
+  echo "-- drift regression skipped: bun not found"
+fi
+
 echo "== Forge smoke tests passed =="
