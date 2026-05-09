@@ -20,6 +20,7 @@ const EXPECTED_PACKAGES = [
       "package.json",
       "extensions/forge-core/index.ts",
       "extensions/forge-core/tools/forge-status.ts",
+      "extensions/forge-core/tools/forge-goal.ts",
       "extensions/forge-core/tools/forge-doctor.ts",
       "skills/forge-plan/SKILL.md",
       "skills/forge-review/SKILL.md",
@@ -186,6 +187,7 @@ function inspectActiveTools(pi: ExtensionAPI): DoctorCheck[] {
   const required = [
     "forge_status",
     "forge_update_state",
+    "forge_goal",
     "forge_record_artifact",
     "forge_worktree_delegate",
     "forge_review_worktree",

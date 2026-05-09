@@ -22,15 +22,16 @@ run_pi_ext "crucible" "packages/forge-crucible/extensions/forge-crucible/index.t
 # Root package load: validates the monorepo pi manifest exposes all Forge resources.
 echo "-- root package"
 pi -p --no-session --no-extensions -e "$ROOT" \
-  "List Forge tools only. Include forge_doctor, forge_signal, forge_crucible, forge_anneal, and crucible_status if available." >/tmp/forge-smoke-root.out
+  "List Forge tools only. Include forge_goal, forge_doctor, forge_signal, forge_crucible, forge_anneal, and crucible_status if available." >/tmp/forge-smoke-root.out
 cat /tmp/forge-smoke-root.out
-for tool in forge_doctor forge_signal forge_crucible forge_anneal crucible_status; do
+for tool in forge_goal forge_doctor forge_signal forge_crucible forge_anneal crucible_status; do
   grep -q "$tool" /tmp/forge-smoke-root.out
 done
 
 echo "-- forge tools"
 pi -p --no-session --no-extensions -e "$ROOT/packages/forge-core/extensions/forge-core/index.ts" \
-  "List Forge tools only. Include forge_doctor if available." >/tmp/forge-smoke-tools.out
+  "List Forge tools only. Include forge_goal and forge_doctor if available." >/tmp/forge-smoke-tools.out
 cat /tmp/forge-smoke-tools.out
+grep -q "forge_goal" /tmp/forge-smoke-tools.out
 
 echo "== Forge smoke tests passed =="

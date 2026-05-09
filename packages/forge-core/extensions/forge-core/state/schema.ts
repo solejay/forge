@@ -1,6 +1,7 @@
 export type TaskStatus = "idle" | "planning" | "in_progress" | "blocked" | "reviewing" | "done" | "cancelled";
 export type VerificationStatus = "not_started" | "running" | "passed" | "failed";
 export type Complexity = "trivial" | "low" | "medium" | "high" | "unknown";
+export type GoalStatus = "idle" | "pursuing" | "paused" | "complete" | "unmet" | "budget_limited";
 
 export interface Classification {
   type: string | null;
@@ -68,6 +69,18 @@ export interface ForgeArtifacts {
   [key: string]: string | string[] | null;
 }
 
+export interface ForgeGoal {
+  objective: string | null;
+  status: GoalStatus;
+  started_at: string | null;
+  updated_at: string | null;
+  token_budget: number | null;
+  tokens_used: number | null;
+  time_budget_seconds: number | null;
+  completed_audit: string | null;
+  notes: string[];
+}
+
 export interface ForgeState {
   version: 1;
   project: {
@@ -76,6 +89,7 @@ export interface ForgeState {
     platforms: string[];
   };
   current_task: CurrentTask;
+  goal: ForgeGoal;
   artifacts: ForgeArtifacts;
   history: {
     completed_tasks: CurrentTask[];
@@ -134,6 +148,17 @@ export function createDefaultForgeState(): ForgeState {
         escalation_required: false,
         human_decision: null,
       },
+    },
+    goal: {
+      objective: null,
+      status: "idle",
+      started_at: null,
+      updated_at: null,
+      token_budget: null,
+      tokens_used: null,
+      time_budget_seconds: null,
+      completed_audit: null,
+      notes: [],
     },
     artifacts: {
       prd: "pipeline/prd.md",

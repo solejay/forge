@@ -119,17 +119,19 @@ pipeline/state.json
 
 ### 1. Start any meaningful task with a plan
 
-In pi:
+Forge Core automatically routes meaningful implementation prompts through planning when it detects bug, feature, refactor, design, performance, accessibility, or deployment intent. You can still start planning manually in pi:
 
 ```txt
 /forge-plan
 ```
 
-Or ask directly:
+Manual natural-language routing still works:
 
 ```txt
 Add offline caching to the transactions screen. Use Forge planning first, then implement.
 ```
+
+Auto-plan is intentionally conservative. It skips trivial edits, research questions, status/review/handoff requests, and prompts that already have an active plan.
 
 Useful tools:
 
@@ -150,7 +152,25 @@ execute focused changes
 /forge-review
 ```
 
-### 2. Check current harness state
+### 2. Set a long-running goal
+
+Forge goals are persistent objectives stored in `pipeline/state.json`. They follow the same pattern as Codex-style goals: store the objective, inject continuation guidance while it is active, track budget where possible, and require an explicit completion audit.
+
+```txt
+/forge-goal Finish the offline caching feature and verify it with tests
+```
+
+Or use the tool directly:
+
+```txt
+forge_goal action=set objective="Finish the offline caching feature and verify it with tests"
+forge_goal action=status
+forge_goal action=complete audit="Implemented cache layer, updated transaction screen, ran npm test."
+```
+
+While a goal is pursuing, Forge injects the objective as untrusted user data and tells the agent to choose the next concrete action without repeating completed work. If a token budget is reached, Forge switches the goal to `budget_limited` and asks the agent to wrap up instead of starting new work.
+
+### 3. Check current harness state
 
 ```txt
 /forge-status
@@ -162,7 +182,7 @@ or ask:
 Run forge_status and tell me what task is active, what step we are on, and whether verification passed.
 ```
 
-### 3. Handle drift safely
+### 4. Handle drift safely
 
 If Forge detects that a task changed shape, it blocks and asks for a decision:
 

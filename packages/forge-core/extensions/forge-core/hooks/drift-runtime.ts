@@ -183,6 +183,10 @@ async function recordDriftAndEscalate(
     ...state.current_task.progress.blockers,
     "Forge drift detection requires human decision before continuing.",
   ]));
+  if (state.goal.status === "pursuing") {
+    state.goal.updated_at = new Date().toISOString();
+    state.goal.notes.push(`Drift detected while pursuing goal: ${signals.join("; ")}`);
+  }
 
   await writeForgeState(ctx.cwd, state);
 
@@ -219,6 +223,11 @@ async function recordDriftAndEscalate(
     );
   } else {
     nextState.current_task.drift.human_decision = "stop";
+    if (nextState.goal.status === "pursuing") {
+      nextState.goal.status = "paused";
+      nextState.goal.updated_at = new Date().toISOString();
+      nextState.goal.notes.push("Goal paused because drift handling was stopped by the user.");
+    }
     await writeForgeState(ctx.cwd, nextState);
     safeSendMessage(pi, { customType: "forge-drift-escalation", content: summary + "\n\nHuman decision: stop. Task remains blocked.", display: true });
   }

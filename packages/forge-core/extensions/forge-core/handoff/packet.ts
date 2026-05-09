@@ -17,6 +17,7 @@ export interface HandoffPacket {
     verification: ForgeState["current_task"]["verification"];
     drift: ForgeState["current_task"]["drift"];
   };
+  goal: ForgeState["goal"];
   artifacts: ForgeState["artifacts"];
   next_prompt: string;
 }
@@ -41,6 +42,7 @@ export function buildHandoffPacket(state: ForgeState, goal?: string): HandoffPac
       verification: task.verification,
       drift: task.drift,
     },
+    goal: state.goal,
     artifacts: state.artifacts,
     next_prompt: nextPrompt,
   };
@@ -86,6 +88,13 @@ export function formatHandoffPacket(packet: HandoffPacket): string {
     `- Escalation required: ${task.drift.escalation_required ? "yes" : "no"}`,
     task.drift.signals.length ? `- Signals: ${task.drift.signals.join("; ")}` : "- Signals: none",
     "",
+    "## Goal",
+    `- Status: ${packet.goal.status}`,
+    `- Objective: ${packet.goal.objective ?? "none"}`,
+    `- Tokens: ${packet.goal.tokens_used ?? "n/a"}${packet.goal.token_budget ? ` / ${packet.goal.token_budget}` : ""}`,
+    packet.goal.notes.length ? `- Notes: ${packet.goal.notes.join("; ")}` : "- Notes: none",
+    packet.goal.completed_audit ? `- Completion audit: ${packet.goal.completed_audit}` : "- Completion audit: none",
+    "",
     "## Artifacts",
     ...artifactLines,
     "",
@@ -121,6 +130,7 @@ function buildNextPrompt(state: ForgeState, goal?: string): string {
     "",
     `Verification: ${task.verification.status}`,
     `Drift: ${task.drift.detected ? "detected" : "none"}${task.drift.escalation_required ? " — escalation required" : ""}`,
+    `Forge goal: ${state.goal.status}${state.goal.objective ? ` — ${state.goal.objective}` : ""}`,
     "",
     goal ? `New session goal: ${goal}` : "New session goal: continue the current Forge task safely.",
     "",

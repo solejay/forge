@@ -9,10 +9,12 @@ Core agentic harness primitives for pi.
 - `pipeline/state.json` world state
 - `forge_status` tool and `/forge-status` command
 - `forge_update_state` tool for structured state updates
+- `forge_goal` tool and `/forge-goal` command for persistent objectives
 - `forge_record_artifact` tool for design/engineering handoff artifacts
 - `forge-plan` skill
 - `forge-review` skill
 - Basic context shield for prompt-injection/noise filtering
+- Conservative auto-plan routing for meaningful implementation prompts
 - Stage 2 drift detection + human escalation gate
 - Stage 3 worktree-isolated delegation for safe parallel sub-agents
 - Stage 5 role-based model routing for explore/plan/implement/review/commit agents
@@ -33,6 +35,35 @@ For local development from a Forge checkout:
 ```bash
 pi install /path/to/forge
 ```
+
+## Auto-plan routing
+
+Forge Core inspects each normal user prompt before the agent starts. If the prompt looks like meaningful implementation work, it appends routing context that tells the agent to use the `forge-plan` skill first, write the plan contract to `pipeline/state.json`, and then execute the planned work.
+
+Auto-plan uses the local classifier in `routing/classifier.ts`. It triggers for bug, feature, refactor, design, performance, accessibility, and deployment prompts, but skips trivial edits, research/status/review/handoff prompts, explicit `/forge-plan`, and active tasks that already have a plan.
+
+Manual planning remains supported:
+
+```txt
+/forge-plan
+```
+
+## Forge goals
+
+`forge_goal` manages a Codex-style persisted objective in `pipeline/state.json`.
+
+```txt
+forge_goal action=set objective="Finish the checkout redesign and verify it"
+forge_goal action=status
+forge_goal action=pause
+forge_goal action=resume
+forge_goal action=complete audit="Mapped deliverables to files changed and tests run."
+forge_goal action=clear
+```
+
+When `goal.status` is `pursuing`, Forge injects a continuation block on each agent start. The objective is wrapped as untrusted user data so it cannot override system or harness instructions. The continuation block asks the agent to choose the next concrete action and only call `forge_goal action=complete` after a completion audit with evidence.
+
+If `goal.token_budget` is set and the current context token usage reaches it, Forge marks the goal `budget_limited`. The next turn receives wrap-up guidance instead of normal continuation guidance.
 
 ## Stage 2: Drift detection and escalation
 

@@ -81,6 +81,7 @@ export function summarizeForgeState(state: ForgeState): string {
     `Plan steps: ${task.plan.steps.length} | completed: ${task.progress.completed_steps.length}`,
     `Verification: ${task.verification.status} (${task.verification.checks.length} checks, ${task.verification.failures.length} failures)`,
     `Drift: ${task.drift.detected ? "detected" : "none"}${task.drift.escalation_required ? " — escalation required" : ""}`,
+    `Goal: ${state.goal.status}${state.goal.objective ? ` — ${state.goal.objective}` : ""}`,
     "",
     `Artifacts: ${artifactLines}`,
     "",
@@ -123,6 +124,11 @@ function migrateForgeState(input: Partial<ForgeState> | unknown): ForgeState {
         ...defaults.current_task.drift,
         ...(state.current_task?.drift ?? {}),
       },
+    },
+    goal: {
+      ...defaults.goal,
+      ...(state.goal ?? {}),
+      notes: state.goal?.notes ?? defaults.goal.notes,
     },
     artifacts: {
       ...defaults.artifacts,
